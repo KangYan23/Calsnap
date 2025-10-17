@@ -80,6 +80,14 @@ export async function POST(request: Request) {
     return NextResponse.json(response, { status: 201 });
   } catch (error) {
     console.error("Error saving meal record:", error);
+    // In development, return the error message to make debugging easier.
+    if (process.env.NODE_ENV !== 'production') {
+      return NextResponse.json(
+        { success: false, error: String(error) },
+        { status: 500 }
+      );
+    }
+
     return NextResponse.json(
       { success: false, error: "Internal server error" },
       { status: 500 }

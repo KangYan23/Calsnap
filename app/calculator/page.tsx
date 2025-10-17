@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Calculator, Zap, Target, TrendingUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -10,6 +10,15 @@ import { CalorieRecordInput } from "@/lib/types";
 const cn = (
   ...classes: Array<string | undefined | null | false>
 ) => classes.filter(Boolean).join(" ");
+
+// Form state interface that allows string inputs during editing
+interface FormData {
+  sex: "male" | "female";
+  age: number | string;
+  height: number | string;
+  weight: number | string;
+  activityLevel: "sedentary" | "light" | "moderate" | "active" | "very_active";
+}
 
 interface FloatingShapeProps {
   className?: string;
@@ -71,7 +80,8 @@ function FloatingShape({
 }
 
 export default function CalorieCalculatorPage() {
-  const [formData, setFormData] = useState<CalorieCalculationInput>({
+  const [mounted, setMounted] = useState(false);
+  const [formData, setFormData] = useState<FormData>({
     sex: "male",
     age: 25,
     height: 175,
@@ -82,11 +92,33 @@ export default function CalorieCalculatorPage() {
   const [result, setResult] = useState<CalorieCalculationResult | null>(null);
   const [isCalculating, setIsCalculating] = useState(false);
 
-  const handleInputChange = (field: keyof CalorieCalculationInput, value: string | number) => {
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const handleInputChange = (field: keyof FormData, value: string | number) => {
     setFormData(prev => ({
       ...prev,
       [field]: value
     }));
+  };
+
+  const handleNumberInputChange = (field: keyof FormData, value: string) => {
+    // Allow empty string and valid numbers
+    if (value === '' || (!isNaN(Number(value)) && Number(value) >= 0)) {
+      setFormData(prev => ({
+        ...prev,
+        [field]: value === '' ? '' : Number(value)
+      }));
+    }
+  };
+
+  const isFormValid = () => {
+    const age = typeof formData.age === 'string' ? parseInt(formData.age) : formData.age;
+    const height = typeof formData.height === 'string' ? parseInt(formData.height) : formData.height;
+    const weight = typeof formData.weight === 'string' ? parseInt(formData.weight) : formData.weight;
+    
+    return age > 0 && height > 0 && weight > 0;
   };
 
   const handleCalculate = async () => {
@@ -96,12 +128,21 @@ export default function CalorieCalculatorPage() {
     await new Promise(resolve => setTimeout(resolve, 800));
     
     try {
-      const calculationResult = calculateCalories(formData);
+      // Ensure all numeric values are properly converted
+      const calculationInput: CalorieCalculationInput = {
+        sex: formData.sex,
+        age: typeof formData.age === 'string' ? parseInt(formData.age) || 25 : formData.age,
+        height: typeof formData.height === 'string' ? parseInt(formData.height) || 175 : formData.height,
+        weight: typeof formData.weight === 'string' ? parseInt(formData.weight) || 70 : formData.weight,
+        activityLevel: formData.activityLevel,
+      };
+      
+      const calculationResult = calculateCalories(calculationInput);
       setResult(calculationResult);
       
       // Store the calculation in MongoDB
       const recordData: CalorieRecordInput = {
-        input: formData,
+        input: calculationInput,
         result: calculationResult,
       };
       
@@ -143,6 +184,13 @@ export default function CalorieCalculatorPage() {
 
   return (
     <div className="relative min-h-screen w-full flex items-center justify-center overflow-hidden bg-gradient-to-br from-green-50 via-white to-blue-50 pt-16">
+      {!mounted ? (
+        <div className="text-center py-16">
+          <div className="w-8 h-8 border-2 border-green-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading Calculator...</p>
+        </div>
+      ) : (
+        <>
       {/* Floating Shapes */}
       <div className="absolute inset-0 overflow-hidden">
         <FloatingShape
@@ -187,10 +235,9 @@ export default function CalorieCalculatorPage() {
         <div className="max-w-4xl mx-auto">
           {/* Header */}
           <motion.div
-            custom={0}
-            variants={fadeUpVariants}
-            initial="hidden"
-            animate="visible"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6 }}
             className="text-center mb-12"
           >
             <div className="inline-flex items-center gap-3 px-4 py-2 rounded-full bg-white/80 border border-green-200/50 mb-6 shadow-sm backdrop-blur-sm">
@@ -217,10 +264,9 @@ export default function CalorieCalculatorPage() {
 
           {/* Calculator Form */}
           <motion.div
-            custom={1}
-            variants={fadeUpVariants}
-            initial="hidden"
-            animate="visible"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.2 }}
             className="bg-white/80 backdrop-blur-md rounded-3xl p-8 shadow-xl border border-white/60 mb-8"
           >
             <div className="grid md:grid-cols-2 gap-8">
@@ -241,6 +287,7 @@ export default function CalorieCalculatorPage() {
                           ? "border-green-500 bg-green-50 text-green-700"
                           : "border-gray-200 bg-white text-gray-600 hover:border-green-300"
                       )}
+                      suppressHydrationWarning
                     >
                       Male
                     </button>
@@ -253,6 +300,7 @@ export default function CalorieCalculatorPage() {
                           ? "border-green-500 bg-green-50 text-green-700"
                           : "border-gray-200 bg-white text-gray-600 hover:border-green-300"
                       )}
+                      suppressHydrationWarning
                     >
                       Female
                     </button>
@@ -265,10 +313,12 @@ export default function CalorieCalculatorPage() {
                   <input
                     type="number"
                     value={formData.age}
-                    onChange={(e) => handleInputChange("age", parseInt(e.target.value) || 0)}
+                    onChange={(e) => handleNumberInputChange("age", e.target.value)}
+                    onFocus={(e) => e.target.select()}
                     className="w-full py-3 px-4 rounded-xl border border-gray-200 bg-white text-gray-800 placeholder-gray-400 shadow-sm outline-none transition focus:border-green-400 focus:ring-2 focus:ring-green-200"
                     min="1"
                     max="120"
+                    placeholder="Enter your age"
                   />
                 </div>
 
@@ -278,10 +328,12 @@ export default function CalorieCalculatorPage() {
                   <input
                     type="number"
                     value={formData.height}
-                    onChange={(e) => handleInputChange("height", parseInt(e.target.value) || 0)}
+                    onChange={(e) => handleNumberInputChange("height", e.target.value)}
+                    onFocus={(e) => e.target.select()}
                     className="w-full py-3 px-4 rounded-xl border border-gray-200 bg-white text-gray-800 placeholder-gray-400 shadow-sm outline-none transition focus:border-green-400 focus:ring-2 focus:ring-green-200"
                     min="100"
                     max="250"
+                    placeholder="Enter your height"
                   />
                 </div>
 
@@ -291,10 +343,12 @@ export default function CalorieCalculatorPage() {
                   <input
                     type="number"
                     value={formData.weight}
-                    onChange={(e) => handleInputChange("weight", parseInt(e.target.value) || 0)}
+                    onChange={(e) => handleNumberInputChange("weight", e.target.value)}
+                    onFocus={(e) => e.target.select()}
                     className="w-full py-3 px-4 rounded-xl border border-gray-200 bg-white text-gray-800 placeholder-gray-400 shadow-sm outline-none transition focus:border-green-400 focus:ring-2 focus:ring-green-200"
                     min="20"
                     max="300"
+                    placeholder="Enter your weight"
                   />
                 </div>
               </div>
@@ -321,6 +375,7 @@ export default function CalorieCalculatorPage() {
                           ? "border-green-500 bg-green-50 text-green-700"
                           : "border-gray-200 bg-white text-gray-600 hover:border-green-300"
                       )}
+                      suppressHydrationWarning
                     >
                       <div className="font-medium">{activity.label}</div>
                       <div className="text-sm opacity-75">{activity.desc}</div>
@@ -331,7 +386,7 @@ export default function CalorieCalculatorPage() {
                 {/* Calculate Button */}
                 <Button
                   onClick={handleCalculate}
-                  disabled={isCalculating}
+                  disabled={isCalculating || !isFormValid()}
                   className="w-full rounded-full px-6 py-4 text-lg font-semibold bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white shadow-lg hover:shadow-xl transition-all duration-300 disabled:opacity-50"
                 >
                   {isCalculating ? (
@@ -402,6 +457,8 @@ export default function CalorieCalculatorPage() {
 
       {/* Subtle gradient overlay */}
       <div className="absolute inset-0 bg-gradient-to-t from-white/20 via-transparent to-white/20 pointer-events-none" />
+      </>
+      )}
     </div>
   );
 }

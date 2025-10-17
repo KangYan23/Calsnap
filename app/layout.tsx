@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import Navigation from "@/components/Navigation";
+import FitBot from "@/components/FitBot";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -14,7 +15,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "CaloriSnap - AI-Powered Nutrition Tracker",
+  title: "CalSnap - AI-Powered Nutrition Tracker",
   description: "Snap your meal, know your calories. AI-powered food analysis and calorie tracking.",
 };
 
@@ -32,6 +33,7 @@ export default function RootLayout({
         <main className="pt-16">
           {children}
         </main>
+        <FitBot />
       </body>
     </html>
   );

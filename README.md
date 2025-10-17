@@ -2,6 +2,20 @@ This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-
 
 ## Getting Started
 
+### Environment Setup
+
+1. Copy the example environment file:
+```bash
+cp .env.example .env.local
+```
+
+2. Fill in the required environment variables in `.env.local`:
+   - `GEMINI_API_KEY`: Get your API key from [Google AI Studio](https://aistudio.google.com/app/apikey)
+   - `MONGODB_URI`: Your MongoDB connection string
+   - `JWT_SECRET`: A strong random string for JWT token signing
+
+### Running the Development Server
+
 First, run the development server:
 
 ```bash
